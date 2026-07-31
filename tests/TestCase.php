@@ -68,5 +68,13 @@ abstract class TestCase extends Orchestra
         ]);
 
         $app['config']->set('uploads.disk', 'public');
+
+        // Permite que UploadFile::uploader() resolva para TestUser nos testes,
+        // em vez do App\Models\User por omissão (que não existe aqui).
+        $app['config']->set('auth.providers.users.model', \Gsebastiao\LaravelUploads\Tests\Fixtures\TestUser::class);
+
+        // Guard adicional, usado no teste que confirma que 'auth_guard' é
+        // respeitado (não é o guard 'web' por omissão do Testbench).
+        $app['config']->set('auth.guards.custom', ['driver' => 'session', 'provider' => 'users']);
     }
 }

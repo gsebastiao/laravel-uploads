@@ -65,4 +65,18 @@ return [
     */
     'url_prefix' => '/storage',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Autoria dos uploads (uploaded_by)
+    |--------------------------------------------------------------------------
+    | Quando 'uploaded_by' não é passado explicitamente a uploadFile()/
+    | uploadBase64(), o pacote tenta usar o utilizador autenticado no
+    | momento. Desligar auto_detect_uploader torna esse comportamento
+    | totalmente manual — uploaded_by fica sempre null a menos que seja
+    | passado explicitamente. auth_guard escolhe qual guard verificar
+    | (null usa o guard por omissão da aplicação, via auth()).
+    */
+    'auto_detect_uploader' => true,
+    'auth_guard' => null,
+
 ];

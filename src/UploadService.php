@@ -38,7 +38,7 @@ class UploadService implements UploadInterface
     /**
      * {@inheritDoc}
      */
-    public function uploadFile(UploadedFile $file, Model|string|null $reference = null, ?int $referenceId = null): UploadFile
+    public function uploadFile(UploadedFile $file, Model|string|null $reference = null, ?int $referenceId = null, ?string $category = null, ?int $uploadedBy = null): UploadFile
     {
         $this->validateFile($file);
 
@@ -73,6 +73,8 @@ class UploadService implements UploadInterface
         $model = $this->persist([
             'reference_type' => $refType,
             'reference_id' => $refId,
+            'category' => $category,
+            'uploaded_by' => $this->resolveUploadedBy($uploadedBy),
             'filename' => $filename,
             'original_name' => $file->getClientOriginalName(),
             'path' => $relativePath,
@@ -93,7 +95,7 @@ class UploadService implements UploadInterface
     /**
      * {@inheritDoc}
      */
-    public function uploadBase64(string $base64, Model|string|null $reference = null, ?int $referenceId = null, ?string $filename = null): UploadFile
+    public function uploadBase64(string $base64, Model|string|null $reference = null, ?int $referenceId = null, ?string $filename = null, ?string $category = null, ?int $uploadedBy = null): UploadFile
     {
         [$mime, $binary] = $this->decodeBase64($base64);
         $ext = $this->extensionFromMime($mime);
@@ -131,6 +133,8 @@ class UploadService implements UploadInterface
         $model = $this->persist([
             'reference_type' => $refType,
             'reference_id' => $refId,
+            'category' => $category,
+            'uploaded_by' => $this->resolveUploadedBy($uploadedBy),
             'filename' => $generatedName,
             'original_name' => $filename ?? $generatedName,
             'path' => $relativePath,
@@ -189,13 +193,14 @@ class UploadService implements UploadInterface
     /**
      * {@inheritDoc}
      */
-    public function getFilesByReference(Model|string $reference, ?int $referenceId = null): Collection
+    public function getFilesByReference(Model|string $reference, ?int $referenceId = null, ?string $category = null): Collection
     {
         [$refType, $refId] = $this->resolveReference($reference, $referenceId);
 
         return UploadFile::query()
             ->where('reference_type', $refType)
             ->when($refId !== null, fn ($query) => $query->where('reference_id', $refId))
+            ->when($category !== null, fn ($query) => $query->where('category', $category))
             ->orderByDesc('id')
             ->get();
     }
@@ -312,6 +317,33 @@ class UploadService implements UploadInterface
         }
 
         return [null, null];
+    }
+
+    /**
+     * Resolve quem fez o upload: usa o valor explícito quando dado; senão,
+     * se auto_detect_uploader estiver activo (omissão: sim), tenta o
+     * utilizador autenticado no guard configurado (auth_guard, ou o guard
+     * por omissão quando null). Seguro chamar mesmo fora de contexto HTTP
+     * (consola, filas) — devolve null nesses casos em vez de deixar rebentar.
+     */
+    protected function resolveUploadedBy(?int $uploadedBy): ?int
+    {
+        if ($uploadedBy !== null) {
+            return $uploadedBy;
+        }
+
+        if (! ($this->config['auto_detect_uploader'] ?? true)) {
+            return null;
+        }
+
+        try {
+            $guardName = $this->config['auth_guard'] ?? null;
+            $authInstance = $guardName !== null ? auth($guardName) : auth();
+
+            return $authInstance->check() ? (int) $authInstance->id() : null;
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

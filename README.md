@@ -90,6 +90,8 @@ return [
 | `thumbnail.method` | `fit` mantém proporção; `resize` força as dimensões; `crop` recorta ao centro. |
 | `disk` | Disco definido em `config/filesystems.php`. |
 | `url_prefix` | Fallback de URL para discos sem `url()`. |
+| `auto_detect_uploader` | Se `false`, `uploaded_by` nunca é preenchido automaticamente — só valores explícitos. Omissão: `true`. |
+| `auth_guard` | Guard a verificar para detectar o utilizador autenticado. `null` usa o guard por omissão da aplicação. |
 
 ## Associação polimórfica (morph)
 
@@ -196,15 +198,36 @@ $base64 = 'data:image/png;base64,iVBORw0KGgoAAAANS...';
 $file = Upload::uploadBase64($base64, $post, filename: 'capa.png');
 ```
 
+## Categorização e autoria (`category` / `uploaded_by`)
+
+Dois campos opcionais, úteis quando há vários campos de anexo distintos associados ao mesmo registo (ex.: "identidade" e "comprovativo de residência" no mesmo utilizador), ou quando é preciso saber quem fez cada upload:
+
+```php
+$file = Upload::uploadFile(
+    $request->file('documento'),
+    $user,
+    category: 'identidade',
+    uploadedBy: auth()->id(), // opcional — ver nota abaixo
+);
+
+// Filtrar por categoria ao listar
+$documentosIdentidade = Upload::getFilesByReference($user, category: 'identidade');
+```
+
+- `category` — string livre, sem validação de valores permitidos por omissão. Fica a cargo da aplicação decidir que categorias existem.
+- `uploadedBy` — se omitido, o pacote tenta usar automaticamente o utilizador autenticado no momento. Passa um valor explícito para o sobrepor, ou `null` não altera esse comportamento — só um `int` explícito o faz. Este comportamento automático é configurável: `auto_detect_uploader` (desliga por completo) e `auth_guard` (escolhe qual guard verificar) — ver `config/uploads.php`.
+- Aceder ao utilizador que fez upload: `$file->uploader` (relação `BelongsTo`, resolve dinamicamente o model configurado em `config('auth.providers.users.model')` — não assume `App\Models\User`).
+- Ambos os campos são `nullable`; uploads existentes antes desta funcionalidade continuam válidos, sem necessidade de backfill.
+
 ## API do serviço
 
 | Método | Retorno |
 |--------|---------|
-| `uploadFile(UploadedFile $file, Model\|string\|null $reference = null, ?int $referenceId = null)` | `UploadFile` |
-| `uploadBase64(string $base64, Model\|string\|null $reference = null, ?int $referenceId = null, ?string $filename = null)` | `UploadFile` |
+| `uploadFile(UploadedFile $file, Model\|string\|null $reference = null, ?int $referenceId = null, ?string $category = null, ?int $uploadedBy = null)` | `UploadFile` |
+| `uploadBase64(string $base64, Model\|string\|null $reference = null, ?int $referenceId = null, ?string $filename = null, ?string $category = null, ?int $uploadedBy = null)` | `UploadFile` |
 | `getFile(int $id)` | `?UploadFile` |
 | `deleteFile(int $id, bool $permanent = false)` | `bool` |
-| `getFilesByReference(Model\|string $reference, ?int $referenceId = null)` | `Collection<int, UploadFile>` |
+| `getFilesByReference(Model\|string $reference, ?int $referenceId = null, ?string $category = null)` | `Collection<int, UploadFile>` |
 | `generateThumbnail(string $path)` | `?string` |
 | `validateFile(UploadedFile $file)` | `bool` |
 | `getFileUrl(UploadFile $file)` | `string` |
@@ -220,9 +243,162 @@ Todas as operações são registradas via `Log`.
 
 ## Estrutura da tabela `uploads_files`
 
-`id`, `reference_type`, `reference_id`, `filename`, `original_name`, `path`, `full_path`, `size`, `ext`, `mime`, `width`, `height`, `thumbnail`, `status`, `created_at`, `updated_at`, `deleted_at`.
+`id`, `reference_type`, `reference_id`, `category`, `uploaded_by`, `filename`, `original_name`, `path`, `full_path`, `size`, `ext`, `mime`, `width`, `height`, `thumbnail`, `status`, `created_at`, `updated_at`, `deleted_at`.
 
-As colunas `reference_type` + `reference_id` formam a relação polimórfica (`nullableMorphs`), com índice composto criado automaticamente.
+As colunas `reference_type` + `reference_id` formam a relação polimórfica (`nullableMorphs`), com índice composto criado automaticamente. `category` e `uploaded_by` têm índice próprio, e são ambas `nullable`.
+
+## Quickstart: exemplo de integração completa (frontend + backend)
+
+O pacote em si é só o serviço/Facade — não impõe UI nenhuma. Para quem quer
+produtividade imediata, o repositório inclui `upload-capture.example.js`
+como **referência pronta a copiar**, não como algo que `vendor:publish`
+instala automaticamente. Se preferires construir a tua própria interface,
+ignora esta secção por completo; o resto do README continua válido sozinho.
+
+`upload-capture.example.js` contém quatro plugins jQuery:
+
+| Plugin | Uso |
+|--------|-----|
+| `singleCapture` | Um único ficheiro embutido num formulário (câmara + upload), staged até ao submit. |
+| `multipleCapture` | Vários ficheiros, mesma lógica staged, grid com pré-visualização e download. |
+| `uploadCapture` | Escolhe automaticamente entre os dois acima consoante a opção `multiple`. |
+| `uploadFile` | Gestor de anexos em modal próprio, agindo **imediatamente** contra o servidor (upload e remoção não esperam por nenhum submit) — lista, zip de "descarregar tudo", suporte a categorias. |
+
+Cada plugin tem a sua própria documentação completa via JSDoc dentro do
+ficheiro — as opções todas, com exemplos, estão lá, não repetidas aqui.
+
+O exemplo abaixo usa `uploadFile` (o cenário "anexos de um registo já
+existente"), com um model `Post` genérico — adapta o nome do model, das
+rotas e da tabela conforme a tua aplicação.
+
+### Controller de exemplo
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Post;
+use Gsebastiao\LaravelUploads\Facades\Upload;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+
+class PostAttachmentController extends Controller
+{
+    public function index(Request $request, Post $post): JsonResponse
+    {
+        $files = Upload::getFilesByReference($post, category: $request->input('category'));
+
+        return response()->json([
+            'success' => true,
+            'files' => $files->map(fn ($file) => [
+                'id' => $file->id,
+                'name' => $file->original_name,
+                'url' => Upload::getFileUrl($file),
+                'mime' => $file->mime,
+                'size' => $file->size,
+                'uploaded_at' => optional($file->created_at)->toDateTimeString(),
+                'uploaded_by' => $file->uploaded_by,
+            ]),
+        ]);
+    }
+
+    public function store(Request $request, Post $post): JsonResponse
+    {
+        $request->validate(['file' => ['required', 'file']]);
+
+        try {
+            $file = Upload::uploadFile($request->file('file'), $post, category: $request->input('category'));
+
+            return response()->json([
+                'success' => true,
+                'file' => ['id' => $file->id, 'name' => $file->original_name, 'url' => Upload::getFileUrl($file)],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function destroy(Request $request): JsonResponse
+    {
+        $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']]);
+
+        foreach ($request->input('ids') as $id) {
+            Upload::deleteFile($id, permanent: true);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function downloadAll(Post $post): mixed
+    {
+        $files = Upload::getFilesByReference($post);
+
+        if ($files->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Sem ficheiros.'], 404);
+        }
+
+        $disk = config('uploads.disk', 'public');
+        $zipPath = storage_path('app/tmp/anexos_' . $post->id . '_' . now()->format('YmdHis') . '.zip');
+
+        if (! is_dir(dirname($zipPath))) {
+            mkdir(dirname($zipPath), 0755, true);
+        }
+
+        $zip = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+
+        foreach ($files as $file) {
+            $absolutePath = Storage::disk($disk)->path($file->path);
+            if (is_file($absolutePath)) {
+                $zip->addFile($absolutePath, $file->original_name);
+            }
+        }
+
+        $zip->close();
+
+        return response()->download($zipPath)->deleteFileAfterSend(true);
+    }
+}
+```
+
+### Rotas de exemplo
+
+```php
+use App\Http\Controllers\PostAttachmentController;
+
+Route::get('/posts/{post}/attachments', [PostAttachmentController::class, 'index'])->name('posts.attachments.index');
+Route::post('/posts/{post}/attachments', [PostAttachmentController::class, 'store'])->name('posts.attachments.store');
+Route::post('/posts/attachments/remove', [PostAttachmentController::class, 'destroy'])->name('posts.attachments.destroy');
+Route::get('/posts/{post}/attachments/download-all', [PostAttachmentController::class, 'downloadAll'])->name('posts.attachments.downloadAll');
+```
+
+### Vista de exemplo
+
+```blade
+<input type="hidden" name="attachments[]">
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="{{ asset('js/upload-capture.js') }}"></script> {{-- a tua cópia de upload-capture.example.js --}}
+
+<script>
+    $('input[name="attachments[]"]').uploadFile({
+        multiple: true,
+        listUrl: '{{ route('posts.attachments.index', $post) }}',
+        uploadUrl: '{{ route('posts.attachments.store', $post) }}',
+        deleteUrl: '{{ route('posts.attachments.destroy') }}',
+        downloadAllUrl: '{{ route('posts.attachments.downloadAll', $post) }}',
+        title: 'Anexos'
+    });
+</script>
+```
+
+Para `singleCapture`/`multipleCapture` (ficheiros staged, submetidos junto
+com o resto de um formulário — não imediatos como `uploadFile`), consulta o
+JSDoc de cada um em `upload-capture.example.js`; o princípio de integração
+com o backend é o mesmo (`Upload::getFilesByReference`/`uploadFile`/
+`uploadBase64`/`deleteFile`), só a forma como o JS envia os dados muda.
 
 ## Testes
 

@@ -12,11 +12,11 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static UploadFile uploadFile(UploadedFile $file, Model|string|null $reference = null, ?int $referenceId = null)
- * @method static UploadFile uploadBase64(string $base64, Model|string|null $reference = null, ?int $referenceId = null, ?string $filename = null)
+ * @method static UploadFile uploadFile(UploadedFile $file, Model|string|null $reference = null, ?int $referenceId = null, ?string $category = null, ?int $uploadedBy = null)
+ * @method static UploadFile uploadBase64(string $base64, Model|string|null $reference = null, ?int $referenceId = null, ?string $filename = null, ?string $category = null, ?int $uploadedBy = null)
  * @method static UploadFile|null getFile(int $id)
  * @method static bool deleteFile(int $id, bool $permanent = false)
- * @method static Collection<int, UploadFile> getFilesByReference(Model|string $reference, ?int $referenceId = null)
+ * @method static Collection<int, UploadFile> getFilesByReference(Model|string $reference, ?int $referenceId = null, ?string $category = null)
  * @method static string|null generateThumbnail(string $path)
  * @method static bool validateFile(UploadedFile $file)
  * @method static string getFileUrl(UploadFile $file)

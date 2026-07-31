@@ -157,4 +157,123 @@ class UploadServiceTest extends TestCase
 
         $this->assertStringContainsString($model->path, $url);
     }
+
+    public function test_persists_category_when_provided(): void
+    {
+        $model = $this->service()->uploadFile(UploadedFile::fake()->image('a.png'), null, null, category: 'identidade');
+
+        $this->assertSame('identidade', $model->category);
+    }
+
+    public function test_category_is_null_when_not_provided(): void
+    {
+        $model = $this->service()->uploadFile(UploadedFile::fake()->image('a.png'));
+
+        $this->assertNull($model->category);
+    }
+
+    public function test_get_files_by_reference_filters_by_category(): void
+    {
+        $user = TestUser::create(['name' => 'Eva']);
+        $svc = $this->service();
+
+        $svc->uploadFile(UploadedFile::fake()->image('1.png'), $user, category: 'identidade');
+        $svc->uploadFile(UploadedFile::fake()->image('2.png'), $user, category: 'comprovativo');
+        $svc->uploadFile(UploadedFile::fake()->image('3.png'), $user, category: 'identidade');
+
+        $this->assertCount(2, $svc->getFilesByReference($user, category: 'identidade'));
+        $this->assertCount(1, $svc->getFilesByReference($user, category: 'comprovativo'));
+        // Sem filtro de categoria: devolve todos, como antes desta feature existir.
+        $this->assertCount(3, $svc->getFilesByReference($user));
+    }
+
+    public function test_uploaded_by_uses_explicit_value_when_given(): void
+    {
+        $model = $this->service()->uploadFile(UploadedFile::fake()->image('a.png'), null, null, uploadedBy: 42);
+
+        $this->assertSame(42, $model->uploaded_by);
+    }
+
+    public function test_uploaded_by_defaults_to_authenticated_user(): void
+    {
+        $user = TestUser::create(['name' => 'Fio']);
+        $this->actingAs($user);
+
+        $model = $this->service()->uploadFile(UploadedFile::fake()->image('a.png'));
+
+        $this->assertSame($user->id, $model->uploaded_by);
+    }
+
+    public function test_explicit_uploaded_by_takes_precedence_over_authenticated_user(): void
+    {
+        $user = TestUser::create(['name' => 'Hugo']);
+        $this->actingAs($user);
+
+        $model = $this->service()->uploadFile(UploadedFile::fake()->image('a.png'), null, null, uploadedBy: 999);
+
+        $this->assertSame(999, $model->uploaded_by);
+    }
+
+    public function test_uploaded_by_is_null_without_explicit_value_or_authenticated_user(): void
+    {
+        $model = $this->service()->uploadFile(UploadedFile::fake()->image('a.png'));
+
+        $this->assertNull($model->uploaded_by);
+    }
+
+    public function test_auto_detect_uploader_disabled_ignores_authenticated_user(): void
+    {
+        $user = TestUser::create(['name' => 'Ivo']);
+        $this->actingAs($user);
+
+        config()->set('uploads.auto_detect_uploader', false);
+        $this->app->forgetInstance(UploadInterface::class);
+
+        $model = $this->service()->uploadFile(UploadedFile::fake()->image('a.png'));
+
+        $this->assertNull($model->uploaded_by);
+    }
+
+    public function test_auto_detect_uploader_disabled_still_honors_explicit_value(): void
+    {
+        config()->set('uploads.auto_detect_uploader', false);
+        $this->app->forgetInstance(UploadInterface::class);
+
+        $model = $this->service()->uploadFile(UploadedFile::fake()->image('a.png'), null, null, uploadedBy: 55);
+
+        $this->assertSame(55, $model->uploaded_by);
+    }
+
+    public function test_uses_configured_auth_guard(): void
+    {
+        $user = TestUser::create(['name' => 'Joana']);
+        $this->actingAs($user, 'custom');
+
+        config()->set('uploads.auth_guard', 'custom');
+        $this->app->forgetInstance(UploadInterface::class);
+
+        $model = $this->service()->uploadFile(UploadedFile::fake()->image('a.png'));
+
+        $this->assertSame($user->id, $model->uploaded_by);
+    }
+
+    public function test_uploader_relation_resolves_authenticated_user(): void
+    {
+        $user = TestUser::create(['name' => 'Gil']);
+        $this->actingAs($user);
+
+        $model = $this->service()->uploadFile(UploadedFile::fake()->image('a.png'));
+
+        $this->assertTrue($model->uploader->is($user));
+    }
+
+    public function test_base64_upload_persists_category_and_uploaded_by(): void
+    {
+        $base64 = 'data:image/png;base64,' . base64_encode('conteudo-fake-de-imagem');
+
+        $model = $this->service()->uploadBase64($base64, null, null, category: 'contrato', uploadedBy: 7);
+
+        $this->assertSame('contrato', $model->category);
+        $this->assertSame(7, $model->uploaded_by);
+    }
 }

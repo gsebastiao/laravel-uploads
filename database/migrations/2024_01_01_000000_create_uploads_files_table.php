@@ -21,6 +21,18 @@ return new class extends Migration
             // permitir uploads sem entidade associada.
             $table->nullableMorphs('reference');
 
+            // Agrupa uploads dentro da mesma referência (ex.: vários campos de
+            // anexo distintos associados ao mesmo registo — "identidade",
+            // "comprovativo_residencia", etc.). Nullable e sem valores
+            // pré-definidos — a aplicação decide que categorias existem.
+            $table->string('category')->nullable();
+
+            // Quem fez o upload. Guarda apenas o id — o pacote não assume qual
+            // é o model de User da aplicação anfitriã (ver UploadFile::uploader(),
+            // que resolve isso dinamicamente). Nullable: uploads sem utilizador
+            // autenticado, ou com auto_detect_uploader desligado, continuam válidos.
+            $table->unsignedBigInteger('uploaded_by')->nullable();
+
             $table->string('filename');
             $table->string('original_name');
             $table->string('path');
@@ -34,6 +46,9 @@ return new class extends Migration
             $table->string('status')->default('active');
             $table->timestamps();
             $table->softDeletes();
+
+            $table->index('category');
+            $table->index('uploaded_by');
         });
     }
 

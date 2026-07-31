@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gsebastiao\LaravelUploads\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int         $id
  * @property string|null $reference_type
  * @property int|null    $reference_id
+ * @property string|null $category
+ * @property int|null    $uploaded_by
  * @property string      $filename
  * @property string      $original_name
  * @property string      $path
@@ -43,6 +46,8 @@ class UploadFile extends Model
     protected $fillable = [
         'reference_type',
         'reference_id',
+        'category',
+        'uploaded_by',
         'filename',
         'original_name',
         'path',
@@ -65,6 +70,7 @@ class UploadFile extends Model
     {
         return [
             'reference_id' => 'integer',
+            'uploaded_by' => 'integer',
             'size' => 'integer',
             'width' => 'integer',
             'height' => 'integer',
@@ -79,6 +85,24 @@ class UploadFile extends Model
     public function reference(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * Utilizador que fez o upload (uploaded_by), se aplicável.
+     *
+     * Resolve o model de User dinamicamente a partir de
+     * config('auth.providers.users.model') em vez de assumir App\Models\User
+     * — o pacote não faz essa suposição em mais lado nenhum, e a aplicação
+     * anfitriã pode ter um model de utilizador diferente.
+     *
+     * @return BelongsTo<Model, $this>
+     */
+    public function uploader(): BelongsTo
+    {
+        /** @var class-string<Model> $userModel */
+        $userModel = config('auth.providers.users.model', 'App\\Models\\User');
+
+        return $this->belongsTo($userModel, 'uploaded_by');
     }
 
     /**

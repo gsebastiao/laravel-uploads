@@ -25,8 +25,10 @@ interface UploadInterface
      * @param UploadedFile      $file        Arquivo recebido do request.
      * @param Model|string|null $reference   Model dono, ou tipo (string), ou null.
      * @param int|null          $referenceId ID quando $reference é string.
+     * @param string|null       $category    Categoria/agrupamento opcional (ex.: vários campos de anexo no mesmo registo).
+     * @param int|null          $uploadedBy  ID do utilizador que fez o upload. Se omitido, tenta o utilizador autenticado no momento.
      */
-    public function uploadFile(UploadedFile $file, Model|string|null $reference = null, ?int $referenceId = null): UploadFile;
+    public function uploadFile(UploadedFile $file, Model|string|null $reference = null, ?int $referenceId = null, ?string $category = null, ?int $uploadedBy = null): UploadFile;
 
     /**
      * Realiza o upload a partir de uma string base64.
@@ -35,8 +37,10 @@ interface UploadInterface
      * @param Model|string|null $reference   Model dono, ou tipo (string), ou null.
      * @param int|null          $referenceId ID quando $reference é string.
      * @param string|null       $filename    Nome original opcional.
+     * @param string|null       $category    Categoria/agrupamento opcional.
+     * @param int|null          $uploadedBy  ID do utilizador que fez o upload. Se omitido, tenta o utilizador autenticado no momento.
      */
-    public function uploadBase64(string $base64, Model|string|null $reference = null, ?int $referenceId = null, ?string $filename = null): UploadFile;
+    public function uploadBase64(string $base64, Model|string|null $reference = null, ?int $referenceId = null, ?string $filename = null, ?string $category = null, ?int $uploadedBy = null): UploadFile;
 
     /**
      * Recupera um registro de arquivo por ID.
@@ -53,9 +57,10 @@ interface UploadInterface
      *
      * @param Model|string      $reference   Model dono ou tipo (string).
      * @param int|null          $referenceId ID quando $reference é string.
+     * @param string|null       $category    Filtra por categoria, quando definida.
      * @return Collection<int, UploadFile>
      */
-    public function getFilesByReference(Model|string $reference, ?int $referenceId = null): Collection;
+    public function getFilesByReference(Model|string $reference, ?int $referenceId = null, ?string $category = null): Collection;
 
     /**
      * Gera uma thumbnail a partir de um caminho relativo no disco.
