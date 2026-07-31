@@ -17,6 +17,9 @@ e este projecto adere a [Semantic Versioning](https://semver.org/lang/pt/).
 - `upload-capture.example.js` — plugins jQuery de referência (`singleCapture`, `multipleCapture`, `uploadCapture`, `uploadFile`), totalmente documentados via JSDoc, incluídos no repositório como ponto de partida opcional para quem não quer construir a interface do zero. Não é publicado automaticamente por `vendor:publish`.
 - Secção "Quickstart" no README — exemplo completo de controller, rotas e vista Blade.
 - 13 novos testes, cobrindo `category`, `uploaded_by`, e as duas configurações novas.
+- `php artisan vendor:publish --tag=uploads-assets` — publica `upload-capture.js` para `public/{config('uploads.assets_path')}` (omissão: `assets/js`), em vez de copiar manualmente do repositório.
+- `php artisan vendor:publish --tag=uploads-upgrade-1.1.0` — migration de upgrade para quem já tinha a v1.0.0 instalada (ver nota abaixo).
+- `setImages()`/`addImage()`, em `singleCapture` e `multipleCapture`, passam a aceitar objectos `{src, name, mime}` (além de strings simples, que continuam a funcionar) — o nome real do ficheiro passa a aparecer na grelha e na pré-visualização também para ficheiros já existentes, não só para os recém-escolhidos.
 
 ### Alterado
 
@@ -29,32 +32,17 @@ As colunas novas foram incluídas directamente na migration original de
 criação da tabela (`..._create_uploads_files_table`), em vez de virem numa
 migration própria. Como o Laravel regista migrations pelo nome do ficheiro,
 não pelo conteúdo, quem já tiver corrido a migration da v1.0.0 precisa de
-uma migration própria, na aplicação, para trazer as colunas novas:
+trazer as colunas novas por outra via. A mais simples:
 
 ```bash
-php artisan make:migration add_category_and_uploaded_by_to_uploads_files_table
+php artisan vendor:publish --tag=uploads-upgrade-1.1.0
+php artisan migrate
 ```
 
-```php
-public function up(): void
-{
-    Schema::table('uploads_files', function (Blueprint $table) {
-        $table->string('category')->nullable()->after('reference_id');
-        $table->unsignedBigInteger('uploaded_by')->nullable()->after('category');
-        $table->index('category');
-        $table->index('uploaded_by');
-    });
-}
-
-public function down(): void
-{
-    Schema::table('uploads_files', function (Blueprint $table) {
-        $table->dropIndex(['category']);
-        $table->dropIndex(['uploaded_by']);
-        $table->dropColumn(['category', 'uploaded_by']);
-    });
-}
-```
+Isto publica uma migration própria (com timestamp fresco, corre depois das
+que já tens) e segura de correr mesmo em duplicado — tem guardas
+`Schema::hasColumn()`, por isso não rebenta mesmo que as colunas já
+existam por algum motivo.
 
 Instalações novas (a partir da v1.1.0) não precisam disto — a migration do
 próprio pacote já cria as colunas desde o início.

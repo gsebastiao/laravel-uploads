@@ -768,11 +768,23 @@ var UploadCaptureCore = (function ($) {
                     } // função existente que limpa a imagem
                     $original.attr('type', 'file').val('');
                 },
-                // NOVO MÉTODO SETIMAGE
-                setImage: function (src) {
-                    // console.log('setImage chamado com src:', src);
-                    if (src && src !== '') {
-                        addImage(src, null);
+                // Aceita uma string simples (como sempre foi) OU um objecto
+                // {src, name, mime} — útil ao repor um ficheiro já existente
+                // (ex: reabrir um registo para editar), para o nome real
+                // aparecer em vez do genérico "Documento"/"FICHEIRO". O
+                // objecto {name, type} finge ser um File nativo — a função
+                // interna já lê .name/.type sem verificar se é um File a
+                // sério, por isso isto funciona sem mudar mais nada.
+                setImage: function (item) {
+                    if (!item) return;
+
+                    if (typeof item === 'string') {
+                        if (item !== '') addImage(item, null);
+                        return;
+                    }
+
+                    if (item.src) {
+                        addImage(item.src, { name: item.name || '', type: item.mime || '' });
                     }
                 }
             };
@@ -1384,21 +1396,45 @@ var UploadCaptureCore = (function ($) {
                     $original.val('');            // limpa o valor do input original (opcional)
                     $fileInput.val('');           // limpa o input file interno (opcional)
                 },
-                // NOVO MÉTODO PARA ADICIONAR UMA IMAGEM
-                addImage: function (src) {
-                    if (src && src !== '') {
-                        addImage(src, null);
+                // Adiciona um item — string simples (como sempre foi) ou
+                // objecto {src, name, mime}. Ver nota em setImages() abaixo.
+                addImage: function (item) {
+                    if (!item) return;
+
+                    if (typeof item === 'string') {
+                        if (item !== '') addImage(item, null);
+                        return;
+                    }
+
+                    if (item.src) {
+                        addImage(item.src, { name: item.name || '', type: item.mime || '' });
                     }
                 },
-                // NOVO MÉTODO PARA ADICIONAR MÚLTIPLAS IMAGENS
-                setImages: function (srcArray) {
-                    if (Array.isArray(srcArray)) {
-                        srcArray.forEach(function (src) {
-                            if (src && src !== '') {
-                                addImage(src, null);
-                            }
-                        });
-                    }
+                // Aceita um array de strings simples (como sempre foi) OU um
+                // array de objectos {src, name, mime} — útil ao repor
+                // ficheiros já existentes (ex: reabrir um registo para
+                // editar, ou directamente a resposta de uploadFile's
+                // listUrl), para o nome real e o tipo certo aparecerem em
+                // vez do genérico "FICHEIRO". O objecto {name, type} finge
+                // ser um File nativo — a função interna já lê .name/.type
+                // sem verificar se é um File a sério, por isso isto
+                // funciona sem mudar mais nada. Os dois formatos podem
+                // vir misturados no mesmo array.
+                setImages: function (items) {
+                    if (!Array.isArray(items)) return;
+
+                    items.forEach(function (item) {
+                        if (!item) return;
+
+                        if (typeof item === 'string') {
+                            if (item !== '') addImage(item, null);
+                            return;
+                        }
+
+                        if (item.src) {
+                            addImage(item.src, { name: item.name || '', type: item.mime || '' });
+                        }
+                    });
                 },
                 // NOVO MÉTODO PARA LIMPAR TODAS AS IMAGENS
                 clear: function () {

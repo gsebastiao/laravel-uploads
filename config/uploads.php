@@ -67,6 +67,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Destino do plugin JS ao publicar
+    |--------------------------------------------------------------------------
+    | Caminho relativo a public/, usado por:
+    |   php artisan vendor:publish --tag=uploads-assets
+    | Por omissão, o plugin é copiado para public/assets/js/upload-capture.js.
+    */
+    'assets_path' => 'assets/js',
+
+    /*
+    |--------------------------------------------------------------------------
     | Autoria dos uploads (uploaded_by)
     |--------------------------------------------------------------------------
     | Quando 'uploaded_by' não é passado explicitamente a uploadFile()/
