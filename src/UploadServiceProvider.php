@@ -68,10 +68,10 @@ class UploadServiceProvider extends ServiceProvider
             // para correr depois de qualquer migration já existente.
             $this->publishesMigrations([
                 __DIR__ . '/../database/migrations-upgrades/add_category_and_uploaded_by_to_uploads_files_table.php.stub' => $this->app->databasePath('migrations/add_category_and_uploaded_by_to_uploads_files_table.php'),
-            ], 'uploads-upgrade-1.1.0');
+            ], 'uploads-upgrade-1.2.0');
 
             // Tag agregadora conforme documentado no README. Propositadamente
-            // NÃO inclui uploads-upgrade-1.1.0 (ver nota acima).
+            // NÃO inclui uploads-upgrade-1.2.0 (ver nota acima).
             $this->publishes([
                 __DIR__ . '/../config/uploads.php' => $this->app->configPath('uploads.php'),
                 __DIR__ . '/../database/migrations' => $this->app->databasePath('migrations'),

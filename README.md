@@ -364,6 +364,14 @@ pessoa removeu um ficheiro já existente no ecrã, ele simplesmente **não
 aparece** em `anexos_paths[]` — é assim que sabes, do lado do servidor,
 que foi removido (mais sobre isto no exemplo de controller a seguir).
 
+> **Atalho**: se não quiseres escrever esta lógica à mão, o pacote já a
+> traz pronta, numa trait — `use Gsebastiao\LaravelUploads\Http\Traits\HandlesStagedFileUploads;`
+> no teu controller, e chama `$this->handleFilesPreview(...)` /
+> `$this->handleFilesUpload(...)` com os teus parâmetros. O exemplo abaixo
+> mostra exactamente o que essa trait faz por dentro — útil para perceber
+> o funcionamento, ou para copiar e adaptar se precisares de algo
+> diferente do que ela oferece.
+
 ### Exemplo de controller completo
 
 ```php
@@ -542,6 +550,13 @@ $('#anexosInput').uploadFile({
 | `confirmRemove` | `boolean` | Não (omissão `true`) | Pede confirmação antes de remover. |
 | `onChange` | `Function` | Não | Chamada sempre que a lista muda (upload ou remoção concluídos). |
 | `onReady` | `Function` | Não | Chamada quando o plugin termina de ser montado. |
+
+> **Atalho**: se não quiseres escrever os quatro endpoints à mão, o
+> pacote já os traz prontos, numa trait — `use Gsebastiao\LaravelUploads\Http\Traits\HandlesFileAttachments;`
+> no teu controller, e chama `$this->handleAttachmentsList(...)` /
+> `$this->handleAttachmentUpload(...)` / `$this->handleAttachmentsDelete(...)` /
+> `$this->handleAttachmentsDownloadAll(...)`. Os exemplos abaixo mostram
+> exactamente o que cada método faz por dentro.
 
 ### Os quatro endpoints, um por um
 
