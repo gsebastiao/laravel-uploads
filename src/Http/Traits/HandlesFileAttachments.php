@@ -46,14 +46,14 @@ trait HandlesFileAttachments
 
         return response()->json([
             'success' => true,
-            'files' => $files->map(fn ($file) => [
+            'files' => $files->map(fn($file) => [
                 'id' => $file->id,
                 'name' => $file->original_name,
                 'url' => Upload::getFileUrl($file),
                 'mime' => $file->mime,
                 'size' => $file->size,
                 'uploaded_at' => optional($file->created_at)->toDateTimeString(),
-                'uploaded_by' => $file->uploaded_by,
+                'created_by' => $file->created_by,
                 'category' => $file->category,
             ])->values(),
         ]);
@@ -61,7 +61,7 @@ trait HandlesFileAttachments
 
     /**
      * Responde a uploadUrl — grava um novo anexo imediatamente.
-     * uploaded_by não precisa de ser passado à mão: o próprio serviço já
+     * created_by não precisa de ser passado à mão: o próprio serviço já
      * detecta o utilizador autenticado sozinho (configurável via
      * config('uploads.auto_detect_uploader')/('uploads.auth_guard')).
      *
@@ -94,7 +94,7 @@ trait HandlesFileAttachments
                     'mime' => $file->mime,
                     'size' => $file->size,
                     'uploaded_at' => optional($file->created_at)->toDateTimeString(),
-                    'uploaded_by' => $file->uploaded_by,
+                    'created_by' => $file->created_by,
                     'category' => $file->category,
                 ],
             ]);

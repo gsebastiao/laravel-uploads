@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gsebastiao\LaravelUploads\Tests;
 
+use Gsebastiao\LaravelUploads\Support\AuditSupport;
 use Gsebastiao\LaravelUploads\UploadServiceProvider;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -29,6 +30,18 @@ abstract class TestCase extends Orchestra
         });
 
         Storage::fake('public');
+    }
+
+    protected function tearDown(): void
+    {
+        // Rede de segurança de isolamento: garante que um teste de
+        // AuditIntegrationTest que define um override de
+        // AuditSupport::packageInstalled() nunca vaza para outra classe de
+        // teste, mesmo que o seu próprio tearDown() não corra por algum
+        // motivo (ex.: falha a meio do teste).
+        AuditSupport::resetOverride();
+
+        parent::tearDown();
     }
 
     /**

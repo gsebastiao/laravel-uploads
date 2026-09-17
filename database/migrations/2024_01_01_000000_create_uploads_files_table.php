@@ -27,12 +27,6 @@ return new class extends Migration
             // pré-definidos — a aplicação decide que categorias existem.
             $table->string('category')->nullable();
 
-            // Quem fez o upload. Guarda apenas o id — o pacote não assume qual
-            // é o model de User da aplicação anfitriã (ver UploadFile::uploader(),
-            // que resolve isso dinamicamente). Nullable: uploads sem utilizador
-            // autenticado, ou com auto_detect_uploader desligado, continuam válidos.
-            $table->unsignedBigInteger('uploaded_by')->nullable();
-
             $table->string('filename');
             $table->string('original_name');
             $table->string('path');
@@ -44,11 +38,18 @@ return new class extends Migration
             $table->unsignedInteger('height')->nullable();
             $table->string('thumbnail')->nullable();
             $table->string('status')->default('active');
+
+            // Quem fez o upload. Guarda apenas o id — o pacote não assume qual
+            // é o model de User da aplicação anfitriã (ver UploadFile::uploader(),
+            // que resolve isso dinamicamente). Nullable: uploads sem utilizador
+            // autenticado, ou com auto_detect_uploader desligado, continuam válidos.
+            $table->unsignedBigInteger('created_by')->nullable();
+
             $table->timestamps();
             $table->softDeletes();
 
             $table->index('category');
-            $table->index('uploaded_by');
+            $table->index('created_by');
         });
     }
 

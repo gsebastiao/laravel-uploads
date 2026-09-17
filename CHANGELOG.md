@@ -9,9 +9,14 @@ e este projecto adere a [Semantic Versioning](https://semver.org/lang/pt/).
 
 ### Adicionado
 
+- **Integração opcional com auditoria** ([gsebastiao/laravel-auditable](https://github.com/gsebastiao/laravel-auditable)). Nova secção `audit` em `config/uploads.php` (`audit.enabled`, omissão `false`, também configurável via `AUDIT_UPLOADS_ENABLED` no `.env`). Quando ligada, `create`/`update`/`delete` de `UploadFile` passam a ser auditados automaticamente, com histórico consultável através da API do próprio pacote de auditoria (`auditsFor()`, `->audits`, etc.).
+  - O pacote de auditoria **não** é uma dependência obrigatória — não é declarado em `require` no `composer.json`, apenas em `suggest` (e em `require-dev`, para a suite de testes deste pacote). Instalar `laravel-uploads` continua a não obrigar ninguém a instalar `laravel-auditable`.
+  - Se `audit.enabled` estiver `true` mas `gsebastiao/laravel-auditable` **não** estiver instalado, a aplicação falha ao arrancar com `AuditPackageMissingException`, com uma mensagem clara de como resolver (instalar o pacote ou desligar a opção). Este pacote nunca finge estar a auditar sem gravar nada.
+  - Novo `UploadFile::auditAction()`/`auditFailure()` — seguros para chamar sempre (no-op quando a auditoria está desligada), usados internamente em `deleteFile()` para registar falhas de remoção quando a auditoria está activa.
 - `HandlesStagedFileUploads` (`Gsebastiao\LaravelUploads\Http\Traits`) — trait pronta para o fluxo `uploadCapture`/`singleCapture`/`multipleCapture` (formulário, staged até ao submit). Cobre `handleFilesPreview()` e `handleFilesUpload()`, incluindo a lógica de detectar ficheiros removidos por diferença contra `files_paths[]`.
-- `HandlesFileAttachments` (`Gsebastiao\LaravelUploads\Http\Traits`) — trait pronta para o fluxo `uploadFile` (modal, acção imediata). Cobre os quatro endpoints (`handleAttachmentsList`, `handleAttachmentUpload`, `handleAttachmentsDelete`, `handleAttachmentsDownloadAll`), já com `category`/`uploaded_by` ligados ao serviço.
+- `HandlesFileAttachments` (`Gsebastiao\LaravelUploads\Http\Traits`) — trait pronta para o fluxo `uploadFile` (modal, acção imediata). Cobre os quatro endpoints (`handleAttachmentsList`, `handleAttachmentUpload`, `handleAttachmentsDelete`, `handleAttachmentsDownloadAll`), já com `category`/`created_by` ligados ao serviço.
 - 13 novos testes de Feature, cobrindo as duas traits através de rotas reais (não só chamadas directas aos métodos).
+- Novos testes unitários (`AuditIntegrationTest`) cobrindo os três estados da integração de auditoria: desligada, ligada com pacote instalado, e ligada sem o pacote (falha esperada).
 
 ### Notas
 
@@ -25,20 +30,20 @@ precisar de algo diferente do que elas oferecem.
 ### Adicionado
 
 - Campo `category` em uploads — agrupa ficheiros dentro da mesma referência (ex.: vários campos de anexo distintos associados ao mesmo registo, como "identidade" e "comprovativo de residência"). Filtrável via `getFilesByReference($reference, category: '...')`.
-- Campo `uploaded_by` — regista automaticamente o utilizador autenticado no momento do upload, salvo passagem explícita de outro valor.
+- Campo `created_by` — regista automaticamente o utilizador autenticado no momento do upload, salvo passagem explícita de outro valor.
 - `UploadFile::uploader()` — relação `BelongsTo` que resolve o model de User dinamicamente via `config('auth.providers.users.model')`, sem assumir `App\Models\User`.
-- Configuração `auto_detect_uploader` (bool, omissão `true`) — desliga por completo a detecção automática de `uploaded_by`.
+- Configuração `auto_detect_uploader` (bool, omissão `true`) — desliga por completo a detecção automática de `created_by`.
 - Configuração `auth_guard` (string|null, omissão `null`) — escolhe qual guard de autenticação verificar; `null` usa o guard por omissão da aplicação.
 - Plugins jQuery de referência (`singleCapture`, `multipleCapture`, `uploadCapture`, `uploadFile`), totalmente documentados via JSDoc — `src/Plugin/upload-capture.init.js`, publicável via `php artisan vendor:publish --tag=uploads-assets` (destino configurável, `config('uploads.assets_path')`, omissão `assets/js`).
 - Secção "Quickstart" no README — exemplo completo de controller, rotas e vista Blade, depois expandida numa secção própria por plugin (`uploadCapture`, `uploadFile`), com tabela de parâmetros e o formato exacto de cada pedido/resposta.
-- 13 novos testes, cobrindo `category`, `uploaded_by`, e as duas configurações novas.
+- 13 novos testes, cobrindo `category`, `created_by`, e as duas configurações novas.
 - `php artisan vendor:publish --tag=uploads-upgrade-1.2.0` — migration de upgrade para quem já tinha a v1.0.0 instalada (ver nota abaixo).
 - `setImages()`/`addImage()`, em `singleCapture` e `multipleCapture`, passam a aceitar objectos `{src, name, mime}` (além de strings simples, que continuam a funcionar) — o nome real do ficheiro passa a aparecer na grelha e na pré-visualização também para ficheiros já existentes, não só para os recém-escolhidos.
 
 ### Alterado
 
 - `uploadFile()`, `uploadBase64()` e `getFilesByReference()` — na interface (`UploadInterface`), no serviço (`UploadService`) e no facade (`Upload`) — ganharam parâmetros opcionais novos (`category`, `uploadedBy`). Compatível com chamadas existentes: os parâmetros novos são opcionais e vêm sempre no fim, nenhum parâmetro anterior mudou de posição, tipo ou comportamento.
-- `UploadFile::$fillable` e `casts()` — incluem agora `category` e `uploaded_by`.
+- `UploadFile::$fillable` e `casts()` — incluem agora `category` e `created_by`.
 
 ### Nota para quem actualizar a partir da v1.0.0
 

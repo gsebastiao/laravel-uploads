@@ -1,10 +1,9 @@
 # Laravel Uploads
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/gsebastiao/laravel-uploads.svg)](https://packagist.org/packages/gsebastiao/laravel-uploads)
-[![PHP Version](https://img.shields.io/packagist/php-v/gsebastiao/laravel-uploads.svg)](https://packagist.org/packages/gsebastiao/laravel-uploads)
-[![Laravel Version](https://img.shields.io/badge/Laravel-11.x%20%7C%2012.x%20%7C%2013.x-FF2D20.svg)](https://laravel.com)
-[![CI](https://github.com/gsebastiao/laravel-uploads/actions/workflows/ci.yml/badge.svg)](https://github.com/gsebastiao/laravel-uploads/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/packagist/l/gsebastiao/laravel-uploads.svg)](LICENSE.md)
+[![PHP Version](https://img.shields.io/packagist/php-v/gsebastiao/laravel-uploads.svg)](composer.json)
+[![Laravel Framework](https://img.shields.io/packagist/dependency-v/gsebastiao/laravel-uploads/illuminate/support.svg)](composer.json)
+[![Latest Version](https://img.shields.io/packagist/v/gsebastiao/laravel-uploads.svg)](https://packagist.org/packages/gsebastiao/laravel-uploads)
 
 Pacote Laravel para upload de arquivos **multipart** e **base64**, com geração automática de thumbnails para imagens, persistência de metadados e associação polimórfica a qualquer model (morph).
 
@@ -34,24 +33,27 @@ composer require gsebastiao/laravel-uploads
 
 O pacote usa **auto-discovery** do Laravel; o service provider e o alias `Upload` são registrados automaticamente.
 
-### Publicar configuração e migrations
-
-```bash
-php artisan vendor:publish --tag=uploads
-```
-
-Isso publica `config/uploads.php` e a migration da tabela. Também é possível publicar separadamente:
-
-```bash
-php artisan vendor:publish --tag=uploads-config
-php artisan vendor:publish --tag=uploads-migrations
-```
-
 ### Rodar a migration
 
 ```bash
 php artisan migrate
 ```
+
+Pronto: o pacote traz a própria migration e o `migrate` a executa, sem copiar nada para o seu projeto (a pasta `database/migrations` fica limpa).
+
+### Publicar configuração e migration (opcional)
+
+**Você pode pular esta parte.** Só publique se quiser **editar** os arquivos. Todas as opções (extensões aceitas, tamanho máximo, disco, miniaturas...) também podem ser mudadas por variáveis `UPLOADS_*` no `.env`. A lista completa, com o padrão de cada uma, está em [Configuração](#configuração).
+
+```bash
+php artisan vendor:publish --tag=uploads-config
+```
+
+```bash
+php artisan vendor:publish --tag=uploads-migrations
+```
+
+(Ou os dois de uma vez, mais o plugin JS: `php artisan vendor:publish --tag=uploads`.) Publique a migration **antes** do primeiro `migrate`; os arquivos mantêm o nome original, então o Laravel nunca roda a mesma migration duas vezes.
 
 ### Disco de armazenamento
 
@@ -63,7 +65,36 @@ php artisan storage:link
 
 ## Configuração
 
-`config/uploads.php`:
+**Não é preciso publicar `config/uploads.php`.** O pacote carrega a sua configuração sozinho e cada opção pode ser mudada por uma variável no `.env`:
+
+| Variável | Padrão | O que faz |
+| --- | --- | --- |
+| `UPLOADS_ALLOW_MIME` | `jpg,jpeg,png,gif,pdf,doc,docx` | Extensões aceitas, separadas por vírgulas |
+| `UPLOADS_MAX_SIZE` | `10240` | Tamanho máximo em KB |
+| `UPLOADS_BASE_PATH` | `uploads` | Prefixo de diretório dentro do disco |
+| `UPLOADS_THUMBNAIL_ENABLE` | `true` | Liga a geração de miniaturas |
+| `UPLOADS_THUMBNAIL_WIDTH` | `120` | Largura da miniatura |
+| `UPLOADS_THUMBNAIL_HEIGHT` | `120` | Altura da miniatura |
+| `UPLOADS_THUMBNAIL_QUALITY` | `80` | Qualidade (0–100) |
+| `UPLOADS_THUMBNAIL_METHOD` | `fit` | `fit`, `resize` ou `crop` |
+| `UPLOADS_DISK` | `public` | Disco de `config/filesystems.php` |
+| `UPLOADS_URL_PREFIX` | `/storage` | Fallback de URL para discos sem `url()` |
+| `UPLOADS_ASSET_PATH` | `assets/js` | Destino (dentro de `public/`) do plugin JS |
+| `UPLOADS_AUTO_DETECT` | `true` | Preencher `created_by` com o utilizador autenticado |
+| `UPLOADS_AUTH_GUARD` | (não definir) | Guard usado para detetar o utilizador; sem valor, o padrão |
+| `AUDIT_UPLOADS_ENABLED` | `false` | Liga a [auditoria](#auditoria-integração-opcional) |
+
+```env
+UPLOADS_ALLOW_MIME=jpg,png,pdf
+UPLOADS_MAX_SIZE=5120
+UPLOADS_DISK=s3
+```
+
+> Não deixe uma variável em branco (`UPLOADS_AUTH_GUARD=`): o Laravel lê isso
+> como texto vazio. Para voltar ao padrão, apague a linha. Com
+> `php artisan config:cache`, rode-o de novo depois de mudar o `.env`.
+
+Se preferir editar o ficheiro, publique-o. Estes são os valores padrão de `config/uploads.php`:
 
 ```php
 return [
@@ -83,14 +114,14 @@ return [
 ```
 
 | Chave | Descrição |
-|-------|-----------|
+| ------- | ----------- |
 | `allowed_mimes` | Extensões aceitas. A validação também confere o MIME real. |
 | `max_size` | Tamanho máximo em KB. |
 | `base_path` | Prefixo de diretório dentro do disco. |
 | `thumbnail.method` | `fit` mantém proporção; `resize` força as dimensões; `crop` recorta ao centro. |
 | `disk` | Disco definido em `config/filesystems.php`. |
 | `url_prefix` | Fallback de URL para discos sem `url()`. |
-| `auto_detect_uploader` | Se `false`, `uploaded_by` nunca é preenchido automaticamente — só valores explícitos. Omissão: `true`. |
+| `auto_detect_uploader` | Se `false`, `created_by` nunca é preenchido automaticamente — só valores explícitos. Omissão: `true`. |
 | `auth_guard` | Guard a verificar para detectar o utilizador autenticado. `null` usa o guard por omissão da aplicação. |
 | `assets_path` | Destino (dentro de `public/`) do plugin JS ao publicar via `vendor:publish --tag=uploads-assets`. |
 
@@ -199,7 +230,7 @@ $base64 = 'data:image/png;base64,iVBORw0KGgoAAAANS...';
 $file = Upload::uploadBase64($base64, $post, filename: 'capa.png');
 ```
 
-## Categorização e autoria (`category` / `uploaded_by`)
+## Categorização e autoria (`category` / `created_by`)
 
 Dois campos opcionais, úteis quando há vários campos de anexo distintos associados ao mesmo registo (ex.: "identidade" e "comprovativo de residência" no mesmo utilizador), ou quando é preciso saber quem fez cada upload:
 
@@ -223,7 +254,7 @@ $documentosIdentidade = Upload::getFilesByReference($user, category: 'identidade
 ## API do serviço
 
 | Método | Retorno |
-|--------|---------|
+| -------- | --------- |
 | `uploadFile(UploadedFile $file, Model\|string\|null $reference = null, ?int $referenceId = null, ?string $category = null, ?int $uploadedBy = null)` | `UploadFile` |
 | `uploadBase64(string $base64, Model\|string\|null $reference = null, ?int $referenceId = null, ?string $filename = null, ?string $category = null, ?int $uploadedBy = null)` | `UploadFile` |
 | `getFile(int $id)` | `?UploadFile` |
@@ -239,14 +270,82 @@ Em todos os métodos, `$reference` aceita um model Eloquent (tipo e id extraído
 
 - `Gsebastiao\LaravelUploads\Exceptions\ValidationException` — extensão/MIME não permitido ou tamanho excedido.
 - `Gsebastiao\LaravelUploads\Exceptions\UploadException` — falha na gravação, base64 inválido, etc.
+- `Gsebastiao\LaravelUploads\Exceptions\AuditPackageMissingException` — `uploads.audit.enabled` está `true`, mas `gsebastiao/laravel-auditable` não está instalado (ver secção "Auditoria" abaixo).
 
 Todas as operações são registradas via `Log`.
 
+## Auditoria (integração opcional)
+
+[#auditoria-integração-opcional](#auditoria-integração-opcional)
+
+Este pacote pode auditar automaticamente os uploads (criação, atualização,
+remoção) através do pacote opcional
+[gsebastiao/laravel-auditable](https://github.com/gsebastiao/laravel-auditable).
+**Não é uma dependência obrigatória** — instalar `laravel-uploads` nunca
+obriga ninguém a instalar o pacote de auditoria.
+
+### Ativar
+
+```bash
+composer require gsebastiao/laravel-auditable
+```
+
+```bash
+php artisan migrate
+```
+
+(O `laravel-auditable` não precisa de `vendor:publish`: o config e a migration dele são opcionais — veja o README dele.)
+
+Depois, ligue a opção em `config/uploads.php` (ou via `.env`):
+
+```
+'audit' => [
+    'enabled' => env('AUDIT_UPLOADS_ENABLED', false),
+],
+```
+
+```
+# .env
+AUDIT_UPLOADS_ENABLED=true
+```
+
+A partir daí, todo `create`, `update` e `delete` em `UploadFile` é
+auditado automaticamente. Consulte o histórico através da própria API do
+`laravel-auditable` (documentada no README dele), por exemplo:
+
+```
+use Gsebastiao\LaravelUploads\Models\UploadFile;
+
+UploadFile::auditsFor($id)->get();          // histórico completo de um upload
+UploadFile::auditsFor($id)->failures()->get(); // apenas falhas (delete que rebentou, etc.)
+```
+
+### O que acontece se eu ligar sem instalar o pacote?
+
+A aplicação **falha ao arrancar**, com uma excepção clara
+(`AuditPackageMissingException`) explicando o que fazer — instalar o
+pacote de auditoria, ou desligar `audit.enabled`. O pacote nunca finge
+estar a auditar sem gravar nada: ou audita de verdade, ou avisa alto e cedo
+que não pode.
+
+### Detalhes de implementação
+
+- Com auditoria desligada (omissão), tudo funciona exactamente como antes
+  — nenhuma verificação extra, nenhum custo de performance.
+- Com auditoria ligada, o serviço passa a usar internamente
+  `Gsebastiao\LaravelUploads\Models\Auditable\AuditableUploadFile` (uma
+  subclasse de `UploadFile` que aplica o trait `Auditable` do pacote
+  externo) em vez do `UploadFile` normal — de forma transparente; a API
+  pública do `UploadService`/`Upload` Facade não muda.
+- `full_path` (caminho absoluto no disco do servidor) é excluído do log de
+  auditoria por omissão, por ser um detalhe de infraestrutura e
+  potencialmente sensível.
+
 ## Estrutura da tabela `uploads_files`
 
-`id`, `reference_type`, `reference_id`, `category`, `uploaded_by`, `filename`, `original_name`, `path`, `full_path`, `size`, `ext`, `mime`, `width`, `height`, `thumbnail`, `status`, `created_at`, `updated_at`, `deleted_at`.
+`id`, `reference_type`, `reference_id`, `category`, `created_by`, `filename`, `original_name`, `path`, `full_path`, `size`, `ext`, `mime`, `width`, `height`, `thumbnail`, `status`, `created_at`, `updated_at`, `deleted_at`.
 
-As colunas `reference_type` + `reference_id` formam a relação polimórfica (`nullableMorphs`), com índice composto criado automaticamente. `category` e `uploaded_by` têm índice próprio, e são ambas `nullable`.
+As colunas `reference_type` + `reference_id` formam a relação polimórfica (`nullableMorphs`), com índice composto criado automaticamente. `category` e `created_by` têm índice próprio, e são ambas `nullable`.
 
 ## Usar o plugin JS (opcional)
 
@@ -277,7 +376,7 @@ O ficheiro tem dois "modos" bem diferentes. Se não tiveres a certeza de
 qual precisas, esta tabela resolve:
 
 | A tua situação | Usa |
-|---|---|
+| --- | --- |
 | Tens um formulário (criar/editar um registo) e queres deixar a pessoa escolher fotos/documentos **antes** de carregar em "Guardar" — tudo submete junto, de uma vez | **`uploadCapture`** |
 | Queres um botão "Anexos" que abre uma janela a mostrar ficheiros **já guardados**, onde adicionar/remover acontece **na hora**, sem precisar de nenhum botão "Guardar" à parte | **`uploadFile`** |
 
@@ -328,7 +427,7 @@ caso o widget mostra uma única caixa em vez de uma grelha.
 ### Todas as opções
 
 | Opção | Tipo | Omissão | O que faz |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `multiple` | `boolean` | `true` | `true` = vários ficheiros (grelha). `false` = um só. |
 | `maxFiles` | `number` | `10` | Máximo de ficheiros, só relevante com `multiple: true`. |
 | `gridCols` | `number` | `3` | Colunas da grelha, só relevante com `multiple: true`. |
@@ -351,7 +450,7 @@ escondido pelo plugin — os dados reais viajam por **outros campos**,
 criados automaticamente:
 
 | Campo enviado | Quando aparece | O que contém |
-|---|---|---|
+| --- | --- | --- |
 | `anexos_base64[]` | Ficheiros escolhidos/tirados **nesta sessão** (upload, câmara, arrastar) | O conteúdo do ficheiro, como texto `data:<mime>;base64,...` |
 | `anexos_base64_names[]` | O mesmo caso acima | O nome original do ficheiro, na mesma posição que `anexos_base64[]` (índice 0 corresponde a índice 0, e por aí fora). Capturas de câmara não têm nome original, por isso vêm vazias. |
 | `anexos_paths[]` | Ficheiros que já existiam antes (ex.: reabriste um registo para editar, via `setImages()`) **e continuam lá** — não foram removidos no ecrã | O URL de cada ficheiro já existente |
@@ -493,7 +592,7 @@ mas com objectos `{src, name, mime}` fica mais completo.
 Chamam-se assim: `$('input[name="anexos[]"]').uploadCapture('nomeDoMetodo', argumento)`.
 
 | Método | Argumento | O que faz |
-|---|---|---|
+| --- | --- | --- |
 | `setImages` | `Array` de strings ou de `{src, name, mime}` | Substitui a lista actual pelos itens dados. |
 | `addImage` | string ou `{src, name, mime}` | Adiciona um item à lista actual. |
 | `clear` | — | Remove todos os itens. |
@@ -536,7 +635,7 @@ $('#anexosInput').uploadFile({
 ### Todas as opções
 
 | Opção | Tipo | Obrigatória? | O que faz |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `multiple` | `boolean` | Não (omissão `true`) | `true` = vários anexos. `false` = só 1. |
 | `maxFiles` | `number` | Não | Máximo de anexos, só com `multiple: true`. Sem limite se omitido. |
 | `referenceId` | `number` \| `string` | Não | Valor **inicial** — ver "Várias linhas de uma tabela" abaixo para o caso mais comum de não precisares disto aqui. |
@@ -569,6 +668,7 @@ em caso de erro, `{success: false, message: 'texto do erro'}`.
 **Recebe**: `?id=42` (e `&category=...`, se tiveres configurado categoria).
 
 **Deve devolver**:
+
 ```json
 {
     "success": true,
@@ -580,7 +680,7 @@ em caso de erro, `{success: false, message: 'texto do erro'}`.
             "mime": "application/pdf",
             "size": 102400,
             "uploaded_at": "2026-07-31 10:32:00",
-            "uploaded_by": 3
+            "created_by": 3
         }
     ]
 }
@@ -600,7 +700,7 @@ public function index(Request $request, Post $post): JsonResponse
             'mime' => $file->mime,
             'size' => $file->size,
             'uploaded_at' => optional($file->created_at)->toDateTimeString(),
-            'uploaded_by' => $file->uploaded_by,
+            'created_by' => $file->created_by,
         ]),
     ]);
 }
@@ -613,6 +713,7 @@ aplicável — o plugin trata de montar isto sozinho, não precisas de fazer
 nada no frontend além de configurar o URL.
 
 **Deve devolver**:
+
 ```json
 { "success": true, "file": { "id": 8, "name": "novo.png", "url": "..." } }
 ```
@@ -749,13 +850,12 @@ passa a `getFilesByReference(..., category: ...)`/`uploadFile(..., category: ...
 ### Métodos públicos
 
 | Método | Argumento | O que faz |
-|---|---|---|
+| --- | --- | --- |
 | `open` | `id` (opcional) | Abre o modal. Se passares um id, actualiza `referenceId` antes de abrir — é o que usas no padrão de "várias linhas" acima. |
 | `close` | — | Fecha o modal. |
 | `refresh` | — | Torna a pedir a lista a `listUrl`, sem fechar o modal. |
 | `setReferenceId` | `id` | Muda o registo associado, sem abrir o modal. |
 | `destroy` | — | Remove o plugin por completo. |
-
 
 ## Testes
 

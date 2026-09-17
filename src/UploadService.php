@@ -8,6 +8,7 @@ use Gsebastiao\LaravelUploads\Contracts\UploadInterface;
 use Gsebastiao\LaravelUploads\Exceptions\UploadException;
 use Gsebastiao\LaravelUploads\Exceptions\ValidationException;
 use Gsebastiao\LaravelUploads\Models\UploadFile;
+use Gsebastiao\LaravelUploads\Support\AuditSupport;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -74,7 +75,7 @@ class UploadService implements UploadInterface
             'reference_type' => $refType,
             'reference_id' => $refId,
             'category' => $category,
-            'uploaded_by' => $this->resolveUploadedBy($uploadedBy),
+            'created_by' => $this->resolveUploadedBy($uploadedBy),
             'filename' => $filename,
             'original_name' => $file->getClientOriginalName(),
             'path' => $relativePath,
@@ -134,7 +135,7 @@ class UploadService implements UploadInterface
             'reference_type' => $refType,
             'reference_id' => $refId,
             'category' => $category,
-            'uploaded_by' => $this->resolveUploadedBy($uploadedBy),
+            'created_by' => $this->resolveUploadedBy($uploadedBy),
             'filename' => $generatedName,
             'original_name' => $filename ?? $generatedName,
             'path' => $relativePath,
@@ -157,7 +158,7 @@ class UploadService implements UploadInterface
      */
     public function getFile(int $id): ?UploadFile
     {
-        return UploadFile::find($id);
+        return $this->modelClass()::find($id);
     }
 
     /**
@@ -165,7 +166,7 @@ class UploadService implements UploadInterface
      */
     public function deleteFile(int $id, bool $permanent = false): bool
     {
-        $file = UploadFile::withTrashed()->find($id);
+        $file = $this->modelClass()::withTrashed()->find($id);
 
         if ($file === null) {
             return false;
@@ -178,13 +179,27 @@ class UploadService implements UploadInterface
                 $this->disk()->delete($file->thumbnail);
             }
 
-            $result = (bool) $file->forceDelete();
+            try {
+                $result = (bool) $file->forceDelete();
+            } catch (Throwable $e) {
+                $file->auditFailure('upload_force_delete', $e, ['id' => $id]);
+
+                throw $e;
+            }
+
             Log::info('[laravel-uploads] Arquivo removido permanentemente.', ['id' => $id]);
 
             return $result;
         }
 
-        $result = (bool) $file->delete();
+        try {
+            $result = (bool) $file->delete();
+        } catch (Throwable $e) {
+            $file->auditFailure('upload_delete', $e, ['id' => $id]);
+
+            throw $e;
+        }
+
         Log::info('[laravel-uploads] Arquivo movido para lixeira (soft delete).', ['id' => $id]);
 
         return $result;
@@ -197,10 +212,10 @@ class UploadService implements UploadInterface
     {
         [$refType, $refId] = $this->resolveReference($reference, $referenceId);
 
-        return UploadFile::query()
+        return $this->modelClass()::query()
             ->where('reference_type', $refType)
-            ->when($refId !== null, fn ($query) => $query->where('reference_id', $refId))
-            ->when($category !== null, fn ($query) => $query->where('category', $category))
+            ->when($refId !== null, fn($query) => $query->where('reference_id', $refId))
+            ->when($category !== null, fn($query) => $query->where('category', $category))
             ->orderByDesc('id')
             ->get();
     }
@@ -355,7 +370,7 @@ class UploadService implements UploadInterface
     {
         $attributes['status'] ??= 'active';
 
-        return UploadFile::create($attributes);
+        return $this->modelClass()::create($attributes);
     }
 
     /**
@@ -521,5 +536,18 @@ class UploadService implements UploadInterface
     protected function disk(): Filesystem
     {
         return Storage::disk((string) ($this->config['disk'] ?? 'public'));
+    }
+
+    /**
+     * Resolve qual classe de model usar para consultas e persistência:
+     * a variante auditável (Models\Auditable\AuditableUploadFile) quando
+     * "audit.enabled" está true e gsebastiao/laravel-auditable está
+     * instalado, ou o UploadFile normal caso contrário.
+     *
+     * @return class-string<UploadFile>
+     */
+    protected function modelClass(): string
+    {
+        return AuditSupport::uploadFileModelClass($this->config);
     }
 }

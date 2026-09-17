@@ -3,3 +3,11 @@ parameters:
     paths:
         - src
     treatPhpDocTypesAsCertain: false
+    # AuditableUploadFile importa classes de gsebastiao/laravel-auditable,
+    # uma dependência opcional (não listada em "require" no composer.json).
+    # Analisá-la estaticamente falharia sempre que o pacote de auditoria não
+    # estiver presente no vendor/ — o que é o caso normal para a maioria dos
+    # utilizadores deste pacote. Ver src/UploadServiceProvider.php e
+    # src/Support/AuditSupport.php para a lógica de detecção em runtime.
+    excludePaths:
+        - src/Models/Auditable/AuditableUploadFile.php

@@ -87,7 +87,7 @@ class HandlesFileAttachmentsTest extends TestCase
         $this->assertSame(1, UploadFile::count());
     }
 
-    public function test_upload_auto_detects_authenticated_user_as_uploaded_by(): void
+    public function test_upload_auto_detects_authenticated_user_as_created_by(): void
     {
         $user = TestUser::create(['name' => 'Auth']);
         $this->actingAs($user);
@@ -97,7 +97,7 @@ class HandlesFileAttachmentsTest extends TestCase
             'file' => UploadedFile::fake()->image('a.png'),
         ]);
 
-        $this->assertSame($user->id, $response->json('file.uploaded_by'));
+        $this->assertSame($user->id, $response->json('file.created_by'));
     }
 
     public function test_delete_removes_given_ids(): void

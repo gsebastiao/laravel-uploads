@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gsebastiao\LaravelUploads;
 
 use Gsebastiao\LaravelUploads\Contracts\UploadInterface;
+use Gsebastiao\LaravelUploads\Support\AuditSupport;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -38,6 +39,15 @@ class UploadServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Falha rápida e alto: se "uploads.audit.enabled" está true mas
+        // gsebastiao/laravel-auditable não está instalado, a aplicação nem
+        // deve subir. O alternativo (ignorar silenciosamente e seguir sem
+        // auditar) daria a falsa impressão de que os uploads estão a ser
+        // auditados quando, na realidade, nada está a ser gravado.
+        /** @var array<string, mixed> $config */
+        $config = $this->app['config']->get('uploads', []);
+        AuditSupport::assertAvailableIfEnabled($config);
+
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
 
         if ($this->app->runningInConsole()) {
@@ -61,13 +71,13 @@ class UploadServiceProvider extends ServiceProvider
 
             // Migration de upgrade — só relevante para quem já tinha a
             // v1.0.0 instalada (a migration original de instalações novas,
-            // a partir da v1.1.0, já inclui category/uploaded_by; ver
+            // a partir da v1.1.0, já inclui category/created_by; ver
             // CHANGELOG.md). Fica DE FORA da tag agregadora 'uploads' de
             // propósito — instalações novas não devem publicar isto.
             // publishesMigrations() dá-lhe um timestamp fresco automaticamente,
             // para correr depois de qualquer migration já existente.
             $this->publishesMigrations([
-                __DIR__ . '/../database/migrations-upgrades/add_category_and_uploaded_by_to_uploads_files_table.php.stub' => $this->app->databasePath('migrations/add_category_and_uploaded_by_to_uploads_files_table.php'),
+                __DIR__ . '/../database/migrations-upgrades/add_category_and_created_by_to_uploads_files_table.php.stub' => $this->app->databasePath('migrations/add_category_and_created_by_to_uploads_files_table.php'),
             ], 'uploads-upgrade-1.2.0');
 
             // Tag agregadora conforme documentado no README. Propositadamente

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Throwable;
 
 /**
  * Representa um arquivo enviado e seus metadados.
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $reference_type
  * @property int|null    $reference_id
  * @property string|null $category
- * @property int|null    $uploaded_by
+ * @property int|null    $created_by
  * @property string      $filename
  * @property string      $original_name
  * @property string      $path
@@ -47,7 +48,7 @@ class UploadFile extends Model
         'reference_type',
         'reference_id',
         'category',
-        'uploaded_by',
+        'created_by',
         'filename',
         'original_name',
         'path',
@@ -70,7 +71,7 @@ class UploadFile extends Model
     {
         return [
             'reference_id' => 'integer',
-            'uploaded_by' => 'integer',
+            'created_by' => 'integer',
             'size' => 'integer',
             'width' => 'integer',
             'height' => 'integer',
@@ -88,7 +89,7 @@ class UploadFile extends Model
     }
 
     /**
-     * Utilizador que fez o upload (uploaded_by), se aplicável.
+     * Utilizador que fez o upload (created_by), se aplicável.
      *
      * Resolve o model de User dinamicamente a partir de
      * config('auth.providers.users.model') em vez de assumir App\Models\User
@@ -102,7 +103,7 @@ class UploadFile extends Model
         /** @var class-string<Model> $userModel */
         $userModel = config('auth.providers.users.model', 'App\\Models\\User');
 
-        return $this->belongsTo($userModel, 'uploaded_by');
+        return $this->belongsTo($userModel, 'created_by');
     }
 
     /**
@@ -119,5 +120,40 @@ class UploadFile extends Model
     public function hasThumbnail(): bool
     {
         return $this->thumbnail !== null && $this->thumbnail !== '';
+    }
+
+    /**
+     * Registra uma ação de auditoria para este arquivo.
+     *
+     * No UploadFile "normal" (auditoria desligada, ou pacote de auditoria
+     * não instalado) isto é intencionalmente um no-op: chamar este método é
+     * sempre seguro em qualquer ponto do UploadService, independentemente de
+     * a auditoria estar ativa. Quando a auditoria está ativa,
+     * AuditableUploadFile::auditAction() (herdado do trait `Auditable` de
+     * gsebastiao/laravel-auditable) sobrepõe este método e grava de facto.
+     *
+     * @param array<string, mixed> $context
+     *
+     * @see \Gsebastiao\LaravelUploads\Models\Auditable\AuditableUploadFile
+     */
+    public function auditAction(string $action, array $context = []): void
+    {
+        // Intencionalmente vazio — ver docblock acima.
+    }
+
+    /**
+     * Registra uma falha de auditoria para este arquivo.
+     *
+     * Assim como auditAction(), é um no-op seguro aqui; torna-se efetivo
+     * apenas em AuditableUploadFile, quando o pacote de auditoria está
+     * instalado e "uploads.audit.enabled" está true.
+     *
+     * @param array<string, mixed> $context
+     *
+     * @see \Gsebastiao\LaravelUploads\Models\Auditable\AuditableUploadFile
+     */
+    public function auditFailure(string $action, Throwable $exception, array $context = []): void
+    {
+        // Intencionalmente vazio — ver docblock acima.
     }
 }

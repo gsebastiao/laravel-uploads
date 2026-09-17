@@ -1608,7 +1608,7 @@ var UploadCaptureCore = (function ($) {
  * @param {boolean} options.multiple - true permite vários anexos, false só 1. (default: true)
  * @param {number} options.maxFiles - Máximo de anexos quando multiple:true. null = sem limite. Ignorado quando multiple:false (fica sempre 1).
  * @param {number|string} options.referenceId - Valor INICIAL, opcional. Normalmente o id real vem depois, por open(id) — ver exemplo 2.
- * @param {string} options.listUrl - URL GET. Recebe ?id=X. Espera {success:true, files:[{id, name, url, mime, size, uploaded_at, uploaded_by}, ...]}. uploaded_at/uploaded_by são opcionais — a linha simplesmente não mostra essa parte se vierem vazios.
+ * @param {string} options.listUrl - URL GET. Recebe ?id=X. Espera {success:true, files:[{id, name, url, mime, size, uploaded_at, created_by}, ...]}. uploaded_at/created_by são opcionais — a linha simplesmente não mostra essa parte se vierem vazios.
  * @param {string} options.uploadUrl - URL POST (multipart). Envia 'file' + 'id'. Espera {success:true, file:{id,name,url,mime,size,...}} ou {success:false, message}.
  * @param {string} options.deleteUrl - URL POST. Envia 'ids[]' (array, mesmo para 1 só) + 'id'. Espera {success:true} ou {success:false, message}.
  * @param {string} options.downloadAllUrl - Opcional. URL GET que devolve um .zip pronto a descarregar. Sem isto, "Download All" volta ao comportamento anterior (um download por ficheiro, em sequência).
@@ -1869,7 +1869,7 @@ var UploadCaptureCore = (function ($) {
                     });
                     var metaParts = [];
                     if (file.uploaded_at) metaParts.push(formatDate(file.uploaded_at));
-                    if (file.uploaded_by) metaParts.push('Uploaded by: ' + file.uploaded_by);
+                    if (file.created_by) metaParts.push('Uploaded by: ' + file.created_by);
                     $meta.text(metaParts.join(' — ')); // fica vazio, sem quebrar nada, se o backend não mandar isto
 
                     $checkbox.on('change', updateRemoveState);

@@ -29,9 +29,9 @@ return new class extends Migration
                 $table->index('category');
             }
 
-            if (! Schema::hasColumn('uploads_files', 'uploaded_by')) {
-                $table->unsignedBigInteger('uploaded_by')->nullable()->after('category');
-                $table->index('uploaded_by');
+            if (! Schema::hasColumn('uploads_files', 'created_by')) {
+                $table->unsignedBigInteger('created_by')->nullable()->after('category');
+                $table->index('created_by');
             }
         });
     }
@@ -47,9 +47,9 @@ return new class extends Migration
                 $table->dropColumn('category');
             }
 
-            if (Schema::hasColumn('uploads_files', 'uploaded_by')) {
-                $table->dropIndex(['uploaded_by']);
-                $table->dropColumn('uploaded_by');
+            if (Schema::hasColumn('uploads_files', 'created_by')) {
+                $table->dropIndex(['created_by']);
+                $table->dropColumn('created_by');
             }
         });
     }
